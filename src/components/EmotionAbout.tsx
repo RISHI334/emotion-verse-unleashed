@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Lightbulb, Brain, MagicWand } from 'lucide-react';
+import { AlertCircle, Lightbulb, Brain, Sparkles } from 'lucide-react';
 
 const EmotionAbout = () => {
   return (
@@ -38,7 +38,7 @@ const EmotionAbout = () => {
             How It Works
           </TabsTrigger>
           <TabsTrigger value="emotions">
-            <MagicWand className="h-4 w-4 mr-2" />
+            <Sparkles className="h-4 w-4 mr-2" />
             Emotions
           </TabsTrigger>
           <TabsTrigger value="use-cases">
