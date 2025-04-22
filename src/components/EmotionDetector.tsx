@@ -60,7 +60,7 @@ const EmotionDetector = () => {
       toast({
         title: "Model Not Loaded",
         description: "Emotion classification model is not ready.",
-        variant: "warning"
+        variant: "destructive"
       });
       return;
     }
