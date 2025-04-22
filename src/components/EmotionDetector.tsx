@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { pipeline } from '@huggingface/transformers';
 import { Button } from '@/components/ui/button';
@@ -25,37 +24,30 @@ const EmotionDetector = () => {
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [classifier, setClassifier] = useState<any>(null);
-  const [modelError, setModelError] = useState<string | null>(null);
-  const [isLoadingModel, setIsLoadingModel] = useState(true);
   const { toast } = useToast();
 
   const loadClassifier = useCallback(async () => {
-    setIsLoadingModel(true);
-    setModelError(null);
+    setIsLoading(true);
     try {
-      console.log("Loading emotion classification model...");
       const model = await pipeline(
         'text-classification', 
         'j-hartmann/emotion-english-distilroberta-base',
         { device: 'cpu' }
       );
-      console.log("Model loaded successfully:", model);
       setClassifier(model);
-      setModelError(null);
       toast({
         title: "Model Loaded",
         description: "Emotion classification model is ready to use.",
       });
     } catch (error) {
       console.error("Error loading model:", error);
-      setModelError("Could not load emotion classification model. Please try again.");
       toast({
         title: "Model Loading Error",
         description: "Could not load emotion classification model.",
         variant: "destructive"
       });
     } finally {
-      setIsLoadingModel(false);
+      setIsLoading(false);
     }
   }, [toast]);
 
@@ -64,30 +56,13 @@ const EmotionDetector = () => {
   }, [loadClassifier]);
 
   const detectEmotion = async () => {
-    if (!text.trim()) {
-      toast({
-        title: "Empty Text",
-        description: "Please enter some text to analyze emotions.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!classifier) {
-      toast({
-        title: "Model Not Loaded",
-        description: "Emotion classification model is not ready.",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!text.trim() || !classifier) return;
 
     setIsLoading(true);
     
     try {
       const results = await classifier(text, { topk: 5 });
       
-      // Normalize and sort results
       const normalizedResults = results.map((r: any) => ({
         emotion: r.label,
         probability: r.score
@@ -99,7 +74,6 @@ const EmotionDetector = () => {
         probabilities: normalizedResults
       });
 
-      // Save to history
       const history = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
       history.push({
         id: Date.now(),
@@ -127,35 +101,11 @@ const EmotionDetector = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 space-y-6 animate-fade-in">
-      {modelError && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Model Loading Error</AlertTitle>
-          <AlertDescription>
-            {modelError}
-            <div className="mt-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={loadClassifier} 
-                disabled={isLoadingModel}
-              >
-                {isLoadingModel ? 'Loading...' : 'Try Again'} 
-                {!isLoadingModel && <RefreshCw className="ml-2 h-4 w-4" />}
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
       <Card className="emotion-card border-primary/20">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">How are you feeling?</CardTitle>
           <CardDescription>
-            {isLoadingModel 
-              ? "Loading emotion detection model... Please wait."
-              : "Enter your text below and we'll analyze the emotions in your message."
-            }
+            Enter your text below and we'll analyze the emotions in your message.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -164,39 +114,21 @@ const EmotionDetector = () => {
             className="emotion-input min-h-[150px] text-lg"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            disabled={isLoadingModel || !classifier}
+            disabled={isLoading || !classifier}
           />
         </CardContent>
         <CardFooter className="flex justify-between">
-          {isLoadingModel ? (
-            <div className="w-full">
-              <p className="text-sm text-muted-foreground mb-2">Loading model...</p>
-              <Progress value={isLoadingModel ? 50 : 100} className="w-full" />
-            </div>
-          ) : !classifier ? (
-            <Button 
-              onClick={loadClassifier} 
-              disabled={isLoadingModel}
-              variant="outline"
-              className="ml-auto"
-            >
-              {isLoadingModel ? 'Loading...' : 'Load Model'} 
-              <RefreshCw className="ml-2 h-4 w-4" />
-            </Button>
-          ) : (
-            <Button 
-              onClick={detectEmotion} 
-              disabled={isLoading || !text.trim() || !classifier}
-              className="px-6 py-5 text-lg ml-auto"
-            >
-              {isLoading ? 'Analyzing...' : 'Detect Emotions'}
-              {!isLoading && <Send className="ml-2 h-5 w-5" />}
-            </Button>
-          )}
+          <Button 
+            onClick={detectEmotion} 
+            disabled={isLoading || !text.trim() || !classifier}
+            className="px-6 py-5 text-lg ml-auto"
+          >
+            {isLoading ? 'Analyzing...' : 'Detect Emotions'}
+            {!isLoading && <Send className="ml-2 h-5 w-5" />}
+          </Button>
         </CardFooter>
       </Card>
 
-      {/* Existing result rendering remains the same */}
       {result && (
         <Card className={`emotion-card border-2 ${emotionData[result.prediction as keyof typeof emotionData].color}/30`}>
           <CardHeader>
