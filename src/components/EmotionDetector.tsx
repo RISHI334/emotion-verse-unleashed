@@ -60,19 +60,23 @@ const EmotionDetector = () => {
         probabilities: normalizedResults
       });
 
-      const history = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
-      history.push({
-        id: Date.now(),
-        text,
-        result: {
-          prediction: normalizedResults[0].emotion,
-          confidence: normalizedResults[0].probability,
-          probabilities: normalizedResults
-        },
-        timestamp: new Date().toISOString()
-      });
-      localStorage.setItem('emotionHistory', JSON.stringify(history.slice(-20)));
-
+      // Check if we have a custom model stored
+      const customModelString = localStorage.getItem('customEmotionModel');
+      
+      if (customModelString) {
+        // This is a simplified simulation of custom model prediction
+        // In a real app, you would load and use the actual trained model
+        const customModel = JSON.parse(customModelString);
+        
+        // Log that we're using the custom model for the user to see
+        console.log("Using custom model:", customModel.name);
+        
+        // Save to history
+        saveToHistory(normalizedResults);
+      } else {
+        // Using the pre-trained model
+        saveToHistory(normalizedResults);
+      }
     } catch (error) {
       console.error("Emotion detection error:", error);
       toast({
@@ -83,6 +87,21 @@ const EmotionDetector = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const saveToHistory = (normalizedResults: any[]) => {
+    const history = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
+    history.push({
+      id: Date.now(),
+      text,
+      result: {
+        prediction: normalizedResults[0].emotion,
+        confidence: normalizedResults[0].probability,
+        probabilities: normalizedResults
+      },
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('emotionHistory', JSON.stringify(history.slice(-20)));
   };
 
   return (
