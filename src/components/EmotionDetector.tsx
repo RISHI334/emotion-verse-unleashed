@@ -1,5 +1,5 @@
-
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { pipeline } from '@huggingface/transformers';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,6 @@ import { Smile, Frown, Meh, AlertTriangle, Heart, Send } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Progress } from '@/components/ui/progress';
 
-// Emotion data with icons, colors, and emoji
 const emotionData = {
   joy: { icon: <Smile className="h-6 w-6" />, color: 'bg-emotion-joy', emoji: '😂' },
   sadness: { icon: <Frown className="h-6 w-6" />, color: 'bg-emotion-sadness', emoji: '😔' },
@@ -19,77 +18,35 @@ const emotionData = {
   neutral: { icon: <Meh className="h-6 w-6" />, color: 'bg-emotion-neutral', emoji: '😐' }
 };
 
-// Mock emotions API response
-const mockEmotionDetection = (text: string) => {
-  if (!text.trim()) return null;
-  
-  // Simple mock algorithm to detect emotions
-  const emotions = [
-    { emotion: 'joy', probability: Math.random() * 0.3 },
-    { emotion: 'sadness', probability: Math.random() * 0.2 },
-    { emotion: 'anger', probability: Math.random() * 0.15 },
-    { emotion: 'fear', probability: Math.random() * 0.1 },
-    { emotion: 'surprise', probability: Math.random() * 0.1 },
-    { emotion: 'disgust', probability: Math.random() * 0.05 },
-    { emotion: 'neutral', probability: Math.random() * 0.1 }
-  ];
-
-  // Boost the emotion based on keywords
-  const keywords = {
-    joy: ['happy', 'great', 'excellent', 'love', 'wonderful', 'amazing'],
-    sadness: ['sad', 'unhappy', 'depressed', 'miserable', 'unfortunate'],
-    anger: ['angry', 'mad', 'furious', 'annoyed', 'irritated'],
-    fear: ['afraid', 'scared', 'terrified', 'nervous', 'anxious'],
-    surprise: ['surprised', 'shocked', 'amazed', 'astonished'],
-    disgust: ['disgusting', 'gross', 'nasty', 'revolting'],
-    neutral: ['okay', 'fine', 'neutral', 'average']
-  };
-
-  for (const emotion in keywords) {
-    const relevantKeywords = keywords[emotion as keyof typeof keywords];
-    for (const keyword of relevantKeywords) {
-      if (text.toLowerCase().includes(keyword)) {
-        const index = emotions.findIndex(e => e.emotion === emotion);
-        if (index !== -1) {
-          emotions[index].probability += 0.3;
-        }
-      }
-    }
-  }
-
-  // Normalize
-  const total = emotions.reduce((sum, e) => sum + e.probability, 0);
-  const normalized = emotions.map(e => ({
-    ...e,
-    probability: e.probability / total
-  }));
-
-  // Sort by probability
-  normalized.sort((a, b) => b.probability - a.probability);
-  
-  return {
-    prediction: normalized[0].emotion,
-    confidence: normalized[0].probability,
-    probabilities: normalized
-  };
-};
-
-interface DetectionResult {
-  prediction: string;
-  confidence: number;
-  probabilities: Array<{
-    emotion: string;
-    probability: number;
-  }>;
-}
-
 const EmotionDetector = () => {
   const [text, setText] = useState('');
-  const [result, setResult] = useState<DetectionResult | null>(null);
+  const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [classifier, setClassifier] = useState<any>(null);
   const { toast } = useToast();
 
-  const detectEmotion = () => {
+  useEffect(() => {
+    const loadClassifier = async () => {
+      try {
+        const model = await pipeline(
+          'text-classification', 
+          'j-hartmann/emotion-english-distilroberta-base',
+          { device: 'cpu' }
+        );
+        setClassifier(model);
+      } catch (error) {
+        toast({
+          title: "Model Loading Error",
+          description: "Could not load emotion classification model.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    loadClassifier();
+  }, []);
+
+  const detectEmotion = async () => {
     if (!text.trim()) {
       toast({
         title: "Empty Text",
@@ -99,28 +56,58 @@ const EmotionDetector = () => {
       return;
     }
 
+    if (!classifier) {
+      toast({
+        title: "Model Not Loaded",
+        description: "Emotion classification model is not ready.",
+        variant: "warning"
+      });
+      return;
+    }
+
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      const detectionResult = mockEmotionDetection(text);
-      if (detectionResult) {
-        setResult(detectionResult);
-        
-        // Save to history
-        const history = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
-        history.push({
-          id: Date.now(),
-          text,
-          result: detectionResult,
-          timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('emotionHistory', JSON.stringify(history.slice(-20)));
-      }
+    try {
+      const results = await classifier(text, { topk: 5 });
+      
+      // Normalize and sort results
+      const normalizedResults = results.map((r: any) => ({
+        emotion: r.label,
+        probability: r.score
+      })).sort((a: any, b: any) => b.probability - a.probability);
+
+      setResult({
+        prediction: normalizedResults[0].emotion,
+        confidence: normalizedResults[0].probability,
+        probabilities: normalizedResults
+      });
+
+      // Save to history
+      const history = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
+      history.push({
+        id: Date.now(),
+        text,
+        result: {
+          prediction: normalizedResults[0].emotion,
+          confidence: normalizedResults[0].probability,
+          probabilities: normalizedResults
+        },
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('emotionHistory', JSON.stringify(history.slice(-20)));
+
+    } catch (error) {
+      toast({
+        title: "Emotion Detection Error",
+        description: "Could not detect emotions. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
+  // Existing rendering logic remains the same
   return (
     <div className="w-full max-w-4xl mx-auto p-4 space-y-6 animate-fade-in">
       <Card className="emotion-card border-primary/20">
@@ -141,7 +128,7 @@ const EmotionDetector = () => {
         <CardFooter className="flex justify-end">
           <Button 
             onClick={detectEmotion} 
-            disabled={isLoading || !text.trim()}
+            disabled={isLoading || !text.trim() || !classifier}
             className="px-6 py-5 text-lg"
           >
             {isLoading ? 'Analyzing...' : 'Detect Emotions'}
@@ -150,6 +137,7 @@ const EmotionDetector = () => {
         </CardFooter>
       </Card>
 
+      {/* Existing result rendering remains the same */}
       {result && (
         <Card className={`emotion-card border-2 ${emotionData[result.prediction as keyof typeof emotionData].color}/30`}>
           <CardHeader>
@@ -171,7 +159,7 @@ const EmotionDetector = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              {result.probabilities.map((item) => (
+              {result.probabilities.map((item: any) => (
                 <div key={item.emotion} className="space-y-1">
                   <div className="flex justify-between text-sm font-medium">
                     <div className="flex items-center">
