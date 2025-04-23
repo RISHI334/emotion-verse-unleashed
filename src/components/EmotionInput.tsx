@@ -2,8 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Send, Brain } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Send } from 'lucide-react';
 
 interface EmotionInputProps {
   text: string;
@@ -14,8 +13,6 @@ interface EmotionInputProps {
 }
 
 const EmotionInput = ({ text, setText, onDetect, isLoading, isClassifierReady }: EmotionInputProps) => {
-  const hasCustomModel = localStorage.getItem('customEmotionModel') !== null;
-
   return (
     <Card className="emotion-card border-primary/20">
       <CardHeader>
@@ -33,17 +30,7 @@ const EmotionInput = ({ text, setText, onDetect, isLoading, isClassifierReady }:
           disabled={isLoading || !isClassifierReady}
         />
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button 
-          variant="outline"
-          asChild
-          className="gap-2"
-        >
-          <Link to="/train">
-            <Brain className="h-5 w-5" />
-            {hasCustomModel ? "Retrain Model" : "Train Custom Model"}
-          </Link>
-        </Button>
+      <CardFooter className="flex justify-end">
         <Button 
           onClick={onDetect} 
           disabled={isLoading || !text.trim() || !isClassifierReady}

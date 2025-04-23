@@ -18,7 +18,7 @@ const EmotionDetector = () => {
       // Using a more accurate model for emotion detection
       const model = await pipeline(
         'text-classification',
-        'j-hartmann/emotion-english-distilroberta-base', // Using a more reliable model
+        'SamLowe/roberta-base-go_emotions', // Using a more accurate emotion model
         { 
           device: 'webgpu' // Using WebGPU for better performance
         }

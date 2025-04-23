@@ -116,7 +116,7 @@ const EmotionTrainer = () => {
     setModelSaved(false);
 
     try {
-      const classifier = await pipeline('text-classification', 'j-hartmann/emotion-english-distilroberta-base', {
+      const classifier = await pipeline('text-classification', 'SamLowe/roberta-base-go_emotions', {
         device: 'webgpu'
       });
 
