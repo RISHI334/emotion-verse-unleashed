@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,6 @@ const Navbar = () => {
       <NavLink href="/" label="Home" icon={<Home />} />
       <NavLink href="/dashboard" label="Dashboard" icon={<Activity />} />
       <NavLink href="/discover" label="Discover" icon={<Lightbulb />} />
-      <NavLink href="/train" label="Train Model" icon={<Brain />} />
       <NavLink href="/about" label="About" icon={<Info />} />
     </>
   );

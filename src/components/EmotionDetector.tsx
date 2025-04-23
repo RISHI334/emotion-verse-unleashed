@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { pipeline } from '@huggingface/transformers';
 import { useToast } from '@/hooks/use-toast';
@@ -15,21 +14,25 @@ const EmotionDetector = () => {
   const loadClassifier = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Using a more accurate model for emotion detection
       const model = await pipeline(
-        'text-classification', 
-        'j-hartmann/emotion-english-distilroberta-base',
-        { device: 'webgpu' }
+        'text-classification',
+        'SamLowe/roberta-base-go_emotions',
+        { 
+          device: 'webgpu',
+          quantized: false // Using full precision for better accuracy
+        }
       );
       setClassifier(model);
       toast({
         title: "Model Loaded",
-        description: "Emotion classification model is ready to use.",
+        description: "Advanced emotion detection model is ready.",
       });
     } catch (error) {
       console.error("Error loading model:", error);
       toast({
         title: "Model Loading Error",
-        description: "Could not load emotion classification model.",
+        description: "Could not load emotion detection model. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -47,7 +50,9 @@ const EmotionDetector = () => {
     setIsLoading(true);
     
     try {
-      const results = await classifier(text, { topk: 5 });
+      const results = await classifier(text, { 
+        top_k: 5 // Get top 5 emotions for more comprehensive analysis
+      });
       
       const normalizedResults = results.map((r: any) => ({
         emotion: r.label,
@@ -60,48 +65,29 @@ const EmotionDetector = () => {
         probabilities: normalizedResults
       });
 
-      // Check if we have a custom model stored
-      const customModelString = localStorage.getItem('customEmotionModel');
-      
-      if (customModelString) {
-        // This is a simplified simulation of custom model prediction
-        // In a real app, you would load and use the actual trained model
-        const customModel = JSON.parse(customModelString);
-        
-        // Log that we're using the custom model for the user to see
-        console.log("Using custom model:", customModel.name);
-        
-        // Save to history
-        saveToHistory(normalizedResults);
-      } else {
-        // Using the pre-trained model
-        saveToHistory(normalizedResults);
-      }
+      // Save to history
+      const history = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
+      history.push({
+        id: Date.now(),
+        text,
+        result: {
+          prediction: normalizedResults[0].emotion,
+          confidence: normalizedResults[0].probability,
+          probabilities: normalizedResults
+        },
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('emotionHistory', JSON.stringify(history.slice(-20)));
     } catch (error) {
       console.error("Emotion detection error:", error);
       toast({
         title: "Emotion Detection Error",
-        description: "Could not detect emotions. Please try again.",
+        description: "Could not analyze emotions. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const saveToHistory = (normalizedResults: any[]) => {
-    const history = JSON.parse(localStorage.getItem('emotionHistory') || '[]');
-    history.push({
-      id: Date.now(),
-      text,
-      result: {
-        prediction: normalizedResults[0].emotion,
-        confidence: normalizedResults[0].probability,
-        probabilities: normalizedResults
-      },
-      timestamp: new Date().toISOString()
-    });
-    localStorage.setItem('emotionHistory', JSON.stringify(history.slice(-20)));
   };
 
   return (
