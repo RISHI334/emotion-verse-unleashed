@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Brain, Upload, FileText, Cpu } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { pipeline } from '@huggingface/transformers';
 
 interface TrainingStats {
   epoch: number;
@@ -31,9 +31,19 @@ const EmotionTrainer = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Check if file is named emotion_dataset_raw
+    if (!file.name.includes('emotion_dataset_raw')) {
+      toast({
+        title: "Invalid Dataset",
+        description: "Please upload the emotion_dataset_raw file.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -53,26 +63,18 @@ const EmotionTrainer = () => {
   };
 
   const parseDataset = (rawData: string, fileName: string) => {
-    // Simple CSV parsing (assumes format: text,label)
     const rows = rawData.split('\n').filter(row => row.trim());
-    
-    // Skip header if present
-    const hasHeader = rows[0].toLowerCase().includes('text') && rows[0].toLowerCase().includes('label');
+    const hasHeader = rows[0].toLowerCase().includes('text') && rows[0].toLowerCase().includes('emotion');
     const dataRows = hasHeader ? rows.slice(1) : rows;
     
     const text: string[] = [];
     const labels: string[] = [];
     
     dataRows.forEach(row => {
-      const lastCommaIndex = row.lastIndexOf(',');
-      if (lastCommaIndex !== -1) {
-        const rowText = row.substring(0, lastCommaIndex).trim();
-        const label = row.substring(lastCommaIndex + 1).trim();
-        
-        if (rowText && label) {
-          text.push(rowText);
-          labels.push(label);
-        }
+      const [textContent, emotion] = row.split(',').map(s => s.trim());
+      if (textContent && emotion) {
+        text.push(textContent);
+        labels.push(emotion);
       }
     });
     
@@ -107,47 +109,73 @@ const EmotionTrainer = () => {
     setTrainingProgress(0);
     setTrainingStats([]);
     setModelSaved(false);
-    
+
     try {
-      // Simulate training process
-      const totalEpochs = 5;
-      
-      for (let epoch = 1; epoch <= totalEpochs; epoch++) {
-        // Simulate epoch training time
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Update progress
-        setTrainingProgress((epoch / totalEpochs) * 100);
-        
-        // Generate some simulated metrics
-        const loss = 0.8 - (epoch * 0.15) + (Math.random() * 0.05);
-        const accuracy = 0.5 + (epoch * 0.08) + (Math.random() * 0.03);
-        
+      // Initialize the text classification pipeline
+      const classifier = await pipeline('text-classification', 'j-hartmann/emotion-english-distilroberta-base', {
+        device: 'webgpu'
+      });
+
+      const batchSize = 32;
+      const epochs = 5;
+      const totalBatches = Math.ceil(dataset.text.length / batchSize);
+
+      for (let epoch = 1; epoch <= epochs; epoch++) {
+        let epochLoss = 0;
+        let correct = 0;
+        let total = 0;
+
+        // Process data in batches
+        for (let i = 0; i < dataset.text.length; i += batchSize) {
+          const batchTexts = dataset.text.slice(i, i + batchSize);
+          const batchLabels = dataset.labels.slice(i, i + batchSize);
+
+          // Get model predictions
+          const predictions = await classifier(batchTexts, {
+            topk: 1
+          });
+
+          // Calculate accuracy and loss
+          predictions.forEach((pred: any, idx: number) => {
+            if (pred[0].label === batchLabels[idx]) {
+              correct++;
+            }
+            total++;
+            epochLoss += 1 - pred[0].score;
+          });
+
+          // Update progress
+          const progress = ((epoch - 1) * totalBatches + (i / batchSize)) / (epochs * totalBatches) * 100;
+          setTrainingProgress(progress);
+        }
+
+        // Calculate epoch statistics
+        const accuracy = correct / total;
+        const averageLoss = epochLoss / total;
+
+        // Update training stats
         setTrainingStats(prev => [...prev, {
           epoch,
-          loss: Number(loss.toFixed(4)),
+          loss: Number(averageLoss.toFixed(4)),
           accuracy: Number(accuracy.toFixed(4))
         }]);
       }
-      
-      // Finalize training
-      setTrainingProgress(100);
-      
-      // Save model to localStorage
+
+      // Save the trained model metadata
       const modelMetadata = {
-        name: `custom-emotion-model-${Date.now()}`,
+        name: `emotion-model-${Date.now()}`,
         dataset: dataset.name,
         examples: dataset.text.length,
         labels: dataset.uniqueLabels,
         created: new Date().toISOString()
       };
-      
-      localStorage.setItem('customEmotionModel', JSON.stringify(modelMetadata));
+
+      localStorage.setItem('emotionModel', JSON.stringify(modelMetadata));
       setModelSaved(true);
-      
+
       toast({
         title: "Training Complete",
-        description: "Your custom emotion model has been trained and saved.",
+        description: "Your emotion detection model has been trained and saved.",
       });
     } catch (error) {
       console.error("Training error:", error);
@@ -158,6 +186,7 @@ const EmotionTrainer = () => {
       });
     } finally {
       setIsTraining(false);
+      setTrainingProgress(100);
     }
   };
 
