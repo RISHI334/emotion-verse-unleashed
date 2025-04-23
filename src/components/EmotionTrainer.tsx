@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -132,7 +133,7 @@ const EmotionTrainer = () => {
 
           // Get model predictions
           const predictions = await classifier(batchTexts, {
-            topk: 1
+            top_k: 1
           });
 
           // Calculate accuracy and loss
