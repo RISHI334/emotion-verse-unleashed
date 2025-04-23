@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
-import { Menu, X, Home, Activity, Lightbulb, Info, Brain } from 'lucide-react';
+import { Menu, Home, Activity, Lightbulb, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Navbar = () => {

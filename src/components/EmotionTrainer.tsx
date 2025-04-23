@@ -2,10 +2,57 @@
 import React, { useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { pipeline } from '@huggingface/transformers';
-import DatasetUpload from './emotion-trainer/DatasetUpload';
-import TrainingProgress from './emotion-trainer/TrainingProgress';
-import { Dataset, TrainingStats } from './emotion-trainer/types';
-import { parseDataset } from './emotion-trainer/utils';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+
+interface Dataset {
+  name: string;
+  text: string[];
+  labels: string[];
+  uniqueLabels: string[];
+}
+
+interface TrainingStats {
+  epoch: number;
+  loss: number;
+  accuracy: number;
+}
+
+const parseDataset = (rawData: string, filename: string): Dataset | null => {
+  try {
+    const lines = rawData.split('\n').filter(line => line.trim());
+    const text: string[] = [];
+    const labels: string[] = [];
+    const uniqueLabels = new Set<string>();
+
+    lines.forEach(line => {
+      const parts = line.split(';');
+      if (parts.length >= 2) {
+        const label = parts[0].trim();
+        const content = parts.slice(1).join(';').trim();
+        
+        if (content && label) {
+          labels.push(label);
+          text.push(content);
+          uniqueLabels.add(label);
+        }
+      }
+    });
+
+    return {
+      name: filename,
+      text,
+      labels,
+      uniqueLabels: Array.from(uniqueLabels)
+    };
+  } catch (error) {
+    console.error('Error parsing dataset:', error);
+    return null;
+  }
+};
 
 const EmotionTrainer = () => {
   const [dataset, setDataset] = useState<Dataset | null>(null);
@@ -150,23 +197,113 @@ const EmotionTrainer = () => {
     }
   };
 
+  // Dataset Upload Component
+  const DatasetUpload = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Upload Dataset</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col space-y-2">
+          <Input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.csv"
+            onChange={handleFileUpload}
+            disabled={isTraining}
+          />
+          <p className="text-sm text-muted-foreground">
+            Upload a dataset file with emotion labels and text examples
+          </p>
+        </div>
+
+        {dataset && (
+          <div className="space-y-2">
+            <Alert>
+              <AlertTitle>Dataset Loaded</AlertTitle>
+              <AlertDescription>
+                <p>Filename: {dataset.name}</p>
+                <p>Examples: {dataset.text.length}</p>
+                <p>Labels: {dataset.uniqueLabels.join(', ')}</p>
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex space-x-2">
+              <Button
+                onClick={startTraining}
+                disabled={isTraining}
+                className="flex-1"
+              >
+                {isTraining ? 'Training...' : 'Start Training'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={resetTraining}
+                disabled={isTraining}
+              >
+                Reset
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // Training Progress Component
+  const TrainingProgress = () => (
+    <>
+      {(isTraining || trainingStats.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Training Progress</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isTraining && (
+              <div className="space-y-2">
+                <p>Training in progress...</p>
+                <Progress value={trainingProgress} />
+                <p className="text-sm text-muted-foreground">
+                  {Math.round(trainingProgress)}% complete
+                </p>
+              </div>
+            )}
+
+            {trainingStats.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Training Statistics</h3>
+                <div className="grid grid-cols-3 gap-2 font-semibold">
+                  <div>Epoch</div>
+                  <div>Loss</div>
+                  <div>Accuracy</div>
+                </div>
+                {trainingStats.map((stat) => (
+                  <div key={stat.epoch} className="grid grid-cols-3 gap-2">
+                    <div>{stat.epoch}</div>
+                    <div>{stat.loss}</div>
+                    <div>{(stat.accuracy * 100).toFixed(2)}%</div>
+                  </div>
+                ))}
+                {modelSaved && (
+                  <Alert className="bg-green-50 dark:bg-green-950">
+                    <AlertTitle>Model Saved</AlertTitle>
+                    <AlertDescription>
+                      Your emotion detection model has been saved and is ready to use.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <DatasetUpload
-        onFileUpload={handleFileUpload}
-        dataset={dataset}
-        isTraining={isTraining}
-        fileInputRef={fileInputRef}
-        onReset={resetTraining}
-        onStartTraining={startTraining}
-      />
-
-      <TrainingProgress
-        isTraining={isTraining}
-        trainingProgress={trainingProgress}
-        trainingStats={trainingStats}
-        modelSaved={modelSaved}
-      />
+      <DatasetUpload />
+      <TrainingProgress />
     </div>
   );
 };

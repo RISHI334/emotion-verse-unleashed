@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { pipeline } from '@huggingface/transformers';
 import { useToast } from '@/hooks/use-toast';
@@ -17,10 +18,9 @@ const EmotionDetector = () => {
       // Using a more accurate model for emotion detection
       const model = await pipeline(
         'text-classification',
-        'SamLowe/roberta-base-go_emotions',
+        'j-hartmann/emotion-english-distilroberta-base', // Using a more reliable model
         { 
-          device: 'webgpu',
-          quantized: false // Using full precision for better accuracy
+          device: 'webgpu' // Using WebGPU for better performance
         }
       );
       setClassifier(model);
