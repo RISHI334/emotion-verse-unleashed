@@ -15,18 +15,18 @@ const EmotionDetector = () => {
   const loadClassifier = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Using a more reliable model that's known to work in the browser
+      // Using the go_emotions model which matches your dataset
       const model = await pipeline(
         'text-classification',
-        'distilbert-base-uncased-finetuned-sst-2-english',
+        'bhadresh-savani/distilbert-base-emotion',
         { 
-          device: 'webgpu' // Using WebGPU for better performance
+          device: 'webgpu'
         }
       );
       setClassifier(model);
       toast({
         title: "Model Loaded",
-        description: "Emotion detection model is ready.",
+        description: "Advanced emotion detection model is ready.",
       });
     } catch (error) {
       console.error("Error loading model:", error);
@@ -52,24 +52,18 @@ const EmotionDetector = () => {
     try {
       const results = await classifier(text);
       
-      // Map sentiment labels to emotions
-      const sentimentToEmotion: {[key: string]: string} = {
-        'POSITIVE': 'joy',
-        'NEGATIVE': 'sadness'
-      };
-      
-      // Format the results to match our expected structure
-      const emotion = sentimentToEmotion[results[0].label] || results[0].label.toLowerCase();
-      const probability = results[0].score;
-      
-      const normalizedResults = [
-        { emotion: emotion, probability: probability },
-        { emotion: emotion === 'joy' ? 'sadness' : 'joy', probability: 1 - probability }
-      ];
+      // Format the results
+      const normalizedResults = results.map((r: any) => ({
+        emotion: r.label.toLowerCase(),
+        probability: r.score
+      })).sort((a: any, b: any) => b.probability - a.probability);
+
+      // Get the top emotion
+      const topEmotion = normalizedResults[0];
 
       setResult({
-        prediction: emotion,
-        confidence: probability,
+        prediction: topEmotion.emotion,
+        confidence: topEmotion.probability,
         probabilities: normalizedResults
       });
 
@@ -79,8 +73,8 @@ const EmotionDetector = () => {
         id: Date.now(),
         text,
         result: {
-          prediction: emotion,
-          confidence: probability,
+          prediction: topEmotion.emotion,
+          confidence: topEmotion.probability,
           probabilities: normalizedResults
         },
         timestamp: new Date().toISOString()
