@@ -15,12 +15,12 @@ const EmotionDetector = () => {
   const loadClassifier = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Using the official go_emotions model
+      // Using the official go_emotions model for web
       const model = await pipeline(
         'text-classification',
-        'SamLowe/roberta-base-go_emotions',
+        'Xenova/go_emotions',
         { 
-          device: 'webgpu'
+          quantized: true
         }
       );
       setClassifier(model);
