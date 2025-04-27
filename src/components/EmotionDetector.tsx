@@ -15,12 +15,12 @@ const EmotionDetector = () => {
   const loadClassifier = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Using the official go_emotions model for web
+      // Using the go_emotions model directly from HuggingFace
       const model = await pipeline(
         'text-classification',
         'Xenova/go_emotions',
         { 
-          quantized: true
+          revision: 'main'
         }
       );
       setClassifier(model);
