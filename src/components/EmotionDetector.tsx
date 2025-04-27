@@ -15,10 +15,10 @@ const EmotionDetector = () => {
   const loadClassifier = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Using the go_emotions model which matches your dataset
+      // Using the official go_emotions model
       const model = await pipeline(
         'text-classification',
-        'bhadresh-savani/distilbert-base-emotion',
+        'SamLowe/roberta-base-go_emotions',
         { 
           device: 'webgpu'
         }
@@ -26,7 +26,7 @@ const EmotionDetector = () => {
       setClassifier(model);
       toast({
         title: "Model Loaded",
-        description: "Advanced emotion detection model is ready.",
+        description: "Go Emotions detection model is ready.",
       });
     } catch (error) {
       console.error("Error loading model:", error);
@@ -52,7 +52,7 @@ const EmotionDetector = () => {
     try {
       const results = await classifier(text);
       
-      // Format the results
+      // Format the results - go_emotions has 28 emotion categories
       const normalizedResults = results.map((r: any) => ({
         emotion: r.label.toLowerCase(),
         probability: r.score
