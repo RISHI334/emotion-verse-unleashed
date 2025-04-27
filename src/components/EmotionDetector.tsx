@@ -18,7 +18,7 @@ const EmotionDetector = () => {
       // Using the go_emotions model directly from HuggingFace
       const model = await pipeline(
         'text-classification',
-        'Xenova/go_emotions',
+        'https://huggingface.co/datasets/google-research-datasets/go_emotions',
         { 
           revision: 'main'
         }
