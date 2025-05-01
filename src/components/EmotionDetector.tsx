@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { pipeline } from '@huggingface/transformers';
 import { useToast } from '@/hooks/use-toast';
@@ -34,10 +33,8 @@ const EmotionDetector = () => {
       // Using a more reliable model from HuggingFace
       const model = await pipeline(
         'text-classification',
-        'SamLowe/roberta-base-go_emotions',
-        {
-          quantized: false 
-        }
+        'SamLowe/roberta-base-go_emotions'
+        // Removing the quantized property as it's not supported
       );
       setClassifier(model);
       toast({
